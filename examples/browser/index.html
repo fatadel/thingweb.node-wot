@@ -13,13 +13,15 @@
 	<!-- <script src="../../packages/browser-bundle/dist/wot-bundle.min.js" defer></script> -->
     <script src="https://cdn.jsdelivr.net/npm/@node-wot/browser-bundle@latest/dist/wot-bundle.min.js" defer></script>
     <script src="index.js" defer></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/raphael/2.1.4/raphael-min.js" defer></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/justgage/1.2.9/justgage.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts" defer></script>
     
     <script>
     // Set the default CSS theme and icon library globally
     JSONEditor.defaults.theme = 'foundation5';
     JSONEditor.defaults.iconlib = 'fontawesome4';
     </script>
-
   </head>
   <body>
     <div id="topbar" class="row">
@@ -55,5 +57,11 @@
         <div id="editor_holder"></div>
       </div>
     </div>
+
+    <div id="widgets" class="row">
+      <div id="gauge" class="medium-4 columns" style="display: none;"></div>
+      <div id="sparkline" class="medium-4 columns" style="display: none;"></div>
+    </div>
+
   </body>
 </html>

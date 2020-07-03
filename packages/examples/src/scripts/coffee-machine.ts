@@ -30,6 +30,17 @@ A complementary tutorial is available at http://www.thingweb.io/smart-coffee-mac
         'https://www.w3.org/2019/wot/td/v1',
     ],
     properties: {
+        waterTemperature: {
+            type: 'integer',
+            '@type': 'discrete'
+        },
+        waterLevel: {
+            type: 'integer',
+            '@type': 'range',
+            minimum: 0,
+            maximum: 100,
+        },
+
         allAvailableResources: {
             type: 'object',
             description: `Current level of all available resources given as an integer percentage for each particular resource.
@@ -213,6 +224,10 @@ Assumes one medium americano if not specified, but time and mode are mandatory f
         },
     },
 }).then( (thing) => {
+
+    thing.writeProperty('waterTemperature', 85);
+    thing.writeProperty('waterLevel', 50);
+
     // Initialize the property values
     thing.writeProperty('allAvailableResources', {
         water: readFromSensor('water'),
@@ -408,7 +423,17 @@ Assumes one medium americano if not specified, but time and mode are mandatory f
     });
 
     // Finally expose the thing
-    thing.expose().then( () => { console.info(`${thing.getThingDescription().title} ready`); } ); 
+    thing.expose().then( async () => {
+        console.info(`${thing.getThingDescription().title} ready`);
+        while (true) {
+            // Write random values from 30 to 90
+            thing.writeProperty('waterTemperature', Math.floor(Math.random() * (91 - 30)) + 30);
+            // Write random values from 0 to 100
+            thing.writeProperty('waterLevel', Math.floor(Math.random() * 101));
+            // Wait a second
+            await new Promise(r => setTimeout(r, 1000));
+        }
+    } ); 
     console.log(`Produced ${thing.getThingDescription().title}`);
 }).catch(e => {
     console.log(e);

@@ -11,7 +11,6 @@
  * var client = new Wot.Http.HttpClient();
  * 
  **/ 
-
 function get_td(addr) {
 	servient.start().then((thingFactory) => {
 		helpers.fetch(addr).then((td) => {
@@ -25,6 +24,9 @@ function get_td(addr) {
 		})
 	})
 }
+
+// Cached values used in live widgets
+let cachedValues = {};
 
 function showInteractions(thing) {
 	let td = thing.getThingDescription();
@@ -40,6 +42,28 @@ function showInteractions(thing) {
 				thing.readProperty(property)
 				.then(res => window.alert(property + ": " + res))
 				.catch(err => window.alert("error: " + err))
+			}
+
+			// Add widgets if possible
+			if (td.properties[property]["@type"] !== undefined) {
+				if (td.properties[property]["@type"] === "range"
+				&& td.properties[property]["minimum"] !== undefined
+				&& td.properties[property]["maximum"] !== undefined) {
+
+					thing.readProperty(property).then(value => {
+						let min = td.properties[property]["minimum"];
+						let max = td.properties[property]["maximum"];
+						let gauge = generateGauge(value, min, max, property);
+						gaugeUpdater(gauge, thing, property);
+					});
+				} else if (td.properties[property]["@type"] === "discrete") {
+
+					thing.readProperty(property).then(value => {
+						cachedValues[property] = [value];
+						let sparkline = generateSparkline(value, property);
+						sparklineUpdater(sparkline, thing, property);
+					});
+				}
 			}
 		}
 	};
@@ -148,3 +172,107 @@ var servient = new Wot.Core.Servient();
 servient.addClientFactory(new Wot.Http.HttpClientFactory());
 var helpers = new Wot.Core.Helpers(servient);
 document.getElementById("fetch").onclick = () => { get_td(document.getElementById("td_addr").value);  };
+
+
+function generateGauge(value, min, max, label) {
+	document.getElementById("gauge").style.display = "block";
+	
+	let gauge = new JustGage({
+		id: "gauge", // the id of the html element
+		value: value,
+		symbol: '%',
+		min: min,
+		max: max,
+		decimals: 0,
+		gaugeWidthScale: 0.6,
+		label: label,
+		labelFontColor: '#404040',
+		labelMinFontSize: 12,
+		pointer: true
+	});
+
+	return gauge;
+}
+
+function gaugeUpdater(gauge, thing, property) {
+	setInterval(() => {
+		thing.readProperty(property).then(value => {
+			gauge.refresh(value);
+		});
+	}, 1000);
+}
+
+function generateSparkline(value, property) {
+	document.getElementById("sparkline").style.display = "block";
+
+	let options = {
+		series: [{
+			name: property,
+			data: [value]
+		}],
+		chart: {
+			type: 'area',
+			height: 160,
+			sparkline: {
+				enabled: true
+			},
+		},
+		stroke: {
+			curve: 'straight'
+		},
+		fill: {
+			opacity: 0.3
+		},
+		xaxis: {
+			crosshairs: {
+				width: 1
+			},
+		},
+		title: {
+			text: value + "°C",
+			offsetX: 0,
+			style: {
+				fontSize: '24px',
+			}
+		},
+		subtitle: {
+			text: property,
+			offsetX: 0,
+			style: {
+				fontSize: '14px',
+			}
+		}
+	};
+
+	let sparkline = new ApexCharts(document.querySelector("#sparkline"), options);
+	sparkline.render();
+
+	return sparkline;
+}
+
+function sparklineUpdater(sparkline, thing, property) {
+	setInterval(() => {
+		thing.readProperty(property).then(value => {
+
+			cachedValues[property].push(value);
+
+			// Keep only last 100 data points
+			if (cachedValues[property].length > 100) {
+				cachedValues[property].shift();
+			}
+
+			// Update the sparkline graph
+			sparkline.updateSeries([{
+				data: cachedValues[property]
+			}]);
+
+			// Update title with current value
+			sparkline.updateOptions({
+				title: {
+					text: value + "°C"
+				}
+			});
+
+		});
+	}, 1000);
+}
