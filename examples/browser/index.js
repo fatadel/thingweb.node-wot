@@ -16,6 +16,7 @@ function get_td(addr) {
 		helpers.fetch(addr).then((td) => {
 			thingFactory.consume(td)
 			.then((thing) => {
+				removeWidgets();
 				removeInteractions();
 				showInteractions(thing);
 			});
@@ -27,6 +28,10 @@ function get_td(addr) {
 
 // Cached values used in live widgets
 let cachedValues = {};
+
+// List of widget updater ids
+// Needed when clearing the widgets
+let widgetUpdaters = [];
 
 function showInteractions(thing) {
 	let td = thing.getThingDescription();
@@ -54,14 +59,14 @@ function showInteractions(thing) {
 						let min = td.properties[property]["minimum"];
 						let max = td.properties[property]["maximum"];
 						let gauge = generateGauge(value, min, max, property);
-						gaugeUpdater(gauge, thing, property);
+						widgetUpdaters.push(gaugeUpdater(gauge, thing, property));
 					});
 				} else if (td.properties[property]["@type"] === "discrete") {
 
 					thing.readProperty(property).then(value => {
 						cachedValues[property] = [value];
 						let sparkline = generateSparkline(value, property);
-						sparklineUpdater(sparkline, thing, property);
+						widgetUpdaters.push(sparklineUpdater(sparkline, thing, property));
 					});
 				}
 			}
@@ -195,7 +200,7 @@ function generateGauge(value, min, max, label) {
 }
 
 function gaugeUpdater(gauge, thing, property) {
-	setInterval(() => {
+	return setInterval(() => {
 		thing.readProperty(property).then(value => {
 			gauge.refresh(value);
 		});
@@ -251,7 +256,7 @@ function generateSparkline(value, property) {
 }
 
 function sparklineUpdater(sparkline, thing, property) {
-	setInterval(() => {
+	return setInterval(() => {
 		thing.readProperty(property).then(value => {
 
 			cachedValues[property].push(value);
@@ -275,4 +280,14 @@ function sparklineUpdater(sparkline, thing, property) {
 
 		});
 	}, 1000);
+}
+
+function removeWidgets() {
+	widgetUpdaters.forEach((id) => clearInterval(id));
+	widgetUpdaters = [];
+	document.getElementById("gauge").style.display = "none";
+	document.getElementById("gauge").innerHTML = "";
+	document.getElementById("sparkline").style.display = "none";
+	document.getElementById("sparkline").innerHTML = "";
+	cachedValues = {};
 }
