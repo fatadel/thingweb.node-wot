@@ -40,6 +40,18 @@ A complementary tutorial is available at http://www.thingweb.io/smart-coffee-mac
             minimum: 0,
             maximum: 100,
         },
+        justDiscrete: {
+            type: 'integer',
+            '@type': 'discrete'
+        },
+        justRange: {
+            type: 'integer',
+            '@type': 'range',
+            minimum: 100,
+            maximum: 1000,
+        },
+
+
 
         allAvailableResources: {
             type: 'object',
@@ -430,6 +442,10 @@ Assumes one medium americano if not specified, but time and mode are mandatory f
             thing.writeProperty('waterTemperature', Math.floor(Math.random() * (91 - 30)) + 30);
             // Write random values from 0 to 100
             thing.writeProperty('waterLevel', Math.floor(Math.random() * 101));
+
+            thing.writeProperty('justRange', Math.floor(Math.random() * (1001 - 100)) + 100);
+            thing.writeProperty('justDiscrete', Math.floor(Math.random() * (801 - 300)) + 300);
+
             // Wait a second
             await new Promise(r => setTimeout(r, 1000));
         }

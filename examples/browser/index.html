@@ -13,6 +13,7 @@
 	<!-- <script src="../../packages/browser-bundle/dist/wot-bundle.min.js" defer></script> -->
     <script src="https://cdn.jsdelivr.net/npm/@node-wot/browser-bundle@latest/dist/wot-bundle.min.js" defer></script>
     <script src="index.js" defer></script>
+    <script src="widgets.js" defer></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/raphael/2.1.4/raphael-min.js" defer></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/justgage/1.2.9/justgage.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts" defer></script>
@@ -58,10 +59,37 @@
       </div>
     </div>
 
-    <div id="widgets" class="row">
-      <div id="gauge" class="medium-4 columns" style="display: none;"></div>
-      <div id="sparkline" class="medium-4 columns" style="display: none;"></div>
+    <!-- <div id="gauges" class="row"> -->
+      <!-- <div id="gauge" class="medium-4 columns"></div> -->
+      <!-- <div id="sparkline" class="medium-4 columns"></div> -->
+      <!-- <div id="sparkline"></div> -->
+      <!-- <div id="gauge"></div> -->
+    <!-- </div> -->
+
+    <!-- <div id="sparklines" class="row">
+    </div> -->
+
+
+    <div id="propertiesMonitor" class="row">
+      <div class="columns">
+        <h4>Properties Live Monitor</h4>
+        <table>
+          <thead>
+            <tr>
+              <th width="350">Name</th>
+              <th width="650">Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Content Goes Here</td>
+              <td><div id="noWidget" class="text-center padding-top-3" style="font-size: 2.25rem; padding: 3rem 1rem;">48</div></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
+
 
   </body>
 </html>
