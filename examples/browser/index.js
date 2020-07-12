@@ -50,49 +50,39 @@ function showInteractions(thing) {
 	for ( let property in td.properties ) {
 		if (td.properties.hasOwnProperty(property)) {
 			let item = document.createElement("li");
+			let checkBox = document.createElement("input");
+			checkBox.type = "checkbox";
+			checkBox.checked = true;
+			checkBox.title = "Live Monitor On/Off"
 			let link = document.createElement("a");
+			link.style = "display: inline-block";
 			link.appendChild(document.createTextNode(property));
+			item.appendChild(checkBox);
 			item.appendChild(link);
 			document.getElementById("properties").appendChild(item);
 
-			item.onclick = (click) => {
+			link.onclick = (click) => {
 				thing.readProperty(property)
 				.then(res => window.alert(property + ": " + res))
 				.catch(err => window.alert("error: " + err))
-			}
+			};
 
-			// Add property widgets (live monitoring)
-			if (td.properties[property]["@type"] !== undefined) {
-				if (td.properties[property]["@type"] === "range"
-				&& td.properties[property]["minimum"] !== undefined
-				&& td.properties[property]["maximum"] !== undefined) {
-					
-					// Add a gauge when possible
-					thing.readProperty(property).then(value => {
-						const min = td.properties[property]["minimum"];
-						const max = td.properties[property]["maximum"];
-						const gauge = new Gauge(property, value, min, max);
-						propertyWidgets.push(gauge);
-						gauge.addToDom("propertyMonitor");
-						
-					});
-				} else if (td.properties[property]["@type"] === "discrete") {
-
-					// Add a sparkline when possible
-					thing.readProperty(property).then(value => {
-						const sparkline = new Sparkline(property, value, "°C");
-						propertyWidgets.push(sparkline);
-						sparkline.addToDom("propertyMonitor");
-					});
+			checkBox.onchange = (event) => {
+				if (checkBox.checked) {
+					addPropertyWidget(td, property, thing);
+				} else {
+					for (const widget of propertyWidgets) {
+						if (widget.property === property) {
+							widget.removeFromDom("propertyMonitor");
+							break;
+						}
+					}
+					propertyWidgets = propertyWidgets.filter(widget => widget.property !== property);
 				}
-			} else {
-				// Add a generic widget otherwise
-				thing.readProperty(property).then(value => {
-					const widget = new GenericWidget(property, value);
-					propertyWidgets.push(widget);
-					widget.addToDom("propertyMonitor");
-				});
-			}
+			};
+
+			// Add property widget (live monitoring)
+			addPropertyWidget(td, property, thing);
 		}
 	};
 	for ( let action in td.actions ) {
@@ -215,6 +205,42 @@ function disableLiveMonitor() {
 	propertyWidgets = [];
 
 	clearInterval(monitorTimerID);
+}
+
+
+function addPropertyWidget(td, property, thing) {
+
+	if (td.properties[property]["@type"] !== undefined) {
+		if (td.properties[property]["@type"] === "range"
+		&& td.properties[property]["minimum"] !== undefined
+		&& td.properties[property]["maximum"] !== undefined) {
+			
+			// Add a gauge when possible
+			thing.readProperty(property).then(value => {
+				const min = td.properties[property]["minimum"];
+				const max = td.properties[property]["maximum"];
+				const gauge = new Gauge(property, value, min, max);
+				propertyWidgets.push(gauge);
+				gauge.addToDom("propertyMonitor");
+				
+			});
+		} else if (td.properties[property]["@type"] === "discrete") {
+
+			// Add a sparkline when possible
+			thing.readProperty(property).then(value => {
+				const sparkline = new Sparkline(property, value, "°C");
+				propertyWidgets.push(sparkline);
+				sparkline.addToDom("propertyMonitor");
+			});
+		}
+	} else {
+		// Add a generic widget otherwise
+		thing.readProperty(property).then(value => {
+			const widget = new GenericWidget(property, value);
+			propertyWidgets.push(widget);
+			widget.addToDom("propertyMonitor");
+		});
+	}
 }
 
 
