@@ -1,3 +1,5 @@
+// **Do not instantiate the `Widget` class**
+// **Instead use the child classes below**
 class Widget {
     constructor(domID, property, initVal, symbol) {
         this.domID = domID;

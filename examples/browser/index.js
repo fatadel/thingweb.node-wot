@@ -12,17 +12,20 @@
  * 
  **/
 
-// List of widget updater ids
-// Needed when clearing the widgets
+// **GLOBAL CONSTANTS**
+// If a property's `@type` field has this value it gets the gauge widget
+const GAUGE_AT_TYPE = "range";
+
+// If a property's `@type` field has this value it gets the sparkline widget
+const SPARKLINE_AT_TYPE = "discrete";
+
+
+
+// Timer ID used for live monitoring
 let monitorTimerID;
 
 // List of property widgets used in live monitoring
 let propertyWidgets = [];
-
-
- // **CONSTANTS**
-
- 
 
 
 function get_td(addr) {
@@ -193,42 +196,6 @@ function removeSchemaEditor() {
 }
 
 
-var servient = new Wot.Core.Servient();
-servient.addClientFactory(new Wot.Http.HttpClientFactory());
-var helpers = new Wot.Core.Helpers(servient);
-document.getElementById("fetch").onclick = () => { get_td(document.getElementById("td_addr").value);  };
-
-
-
-
-
-
-
-
-// function removeWidgets() {
-// 	widgetUpdaters.forEach((id) => clearInterval(id));
-// 	widgetUpdaters = [];
-// 	document.getElementById("gauge").style.display = "none";
-// 	document.getElementById("gauge").innerHTML = "";
-// 	document.getElementById("sparkline").style.display = "none";
-// 	document.getElementById("sparkline").innerHTML = "";
-// 	cachedValues = {};
-// }
-
-
-async function propertyLiveUpdate(thing) {
-	while (true) {
-		propertyWidgets.forEach(widget => {
-			thing.readProperty(widget.property)
-			.then(value => {
-				widget.update(value);
-			})
-		});
-		await new Promise(r => setTimeout(r, 1000));
-	}
-}
-
-
 function enableLiveMonitor(thing) {
 	return setInterval(() => {
 
@@ -242,6 +209,7 @@ function enableLiveMonitor(thing) {
 	}, 1000);
 }
 
+
 function disableLiveMonitor() {
 	propertyWidgets.forEach(widget => widget.removeFromDom("propertyMonitor"));
 	propertyWidgets = [];
@@ -250,122 +218,7 @@ function disableLiveMonitor() {
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// function generateGauge(value, min, max, label) {
-// 	document.getElementById("gauge").style.display = "block";
-	
-// 	let gauge = new JustGage({
-// 		id: "gauge", // the id of the html element
-// 		value: value,
-// 		symbol: '%',
-// 		min: min,
-// 		max: max,
-// 		decimals: 0,
-// 		gaugeWidthScale: 0.6,
-// 		label: label,
-// 		labelFontColor: '#404040',
-// 		labelMinFontSize: 12,
-// 		pointer: true
-// 	});
-
-// 	return gauge;
-// }
-
-// function gaugeUpdater(gauge, thing, property) {
-// 	return setInterval(() => {
-// 		thing.readProperty(property).then(value => {
-// 			gauge.refresh(value);
-// 		});
-// 	}, 1000);
-// }
-
-// function generateSparkline(value, property) {
-// 	document.getElementById("sparkline").style.display = "block";
-
-// 	let options = {
-// 		series: [{
-// 			name: property,
-// 			data: [value]
-// 		}],
-// 		chart: {
-// 			type: 'area',
-// 			height: 160,
-// 			sparkline: {
-// 				enabled: true
-// 			},
-// 		},
-// 		stroke: {
-// 			curve: 'straight'
-// 		},
-// 		fill: {
-// 			opacity: 0.3
-// 		},
-// 		xaxis: {
-// 			crosshairs: {
-// 				width: 1
-// 			},
-// 		},
-// 		title: {
-// 			text: value + "°C",
-// 			offsetX: 0,
-// 			style: {
-// 				fontSize: '24px',
-// 			}
-// 		},
-// 		subtitle: {
-// 			text: property,
-// 			offsetX: 0,
-// 			style: {
-// 				fontSize: '14px',
-// 			}
-// 		}
-// 	};
-
-// 	let sparkline = new ApexCharts(document.querySelector("#sparkline"), options);
-// 	sparkline.render();
-
-// 	return sparkline;
-// }
-
-// function sparklineUpdater(sparkline, thing, property) {
-// 	return setInterval(() => {
-// 		thing.readProperty(property).then(value => {
-
-// 			cachedValues[property].push(value);
-
-// 			// Keep only last 100 data points
-// 			if (cachedValues[property].length > 100) {
-// 				cachedValues[property].shift();
-// 			}
-
-// 			// Update the sparkline graph
-// 			sparkline.updateSeries([{
-// 				data: cachedValues[property]
-// 			}]);
-
-// 			// Update title with current value
-// 			sparkline.updateOptions({
-// 				title: {
-// 					text: value + "°C"
-// 				}
-// 			});
-
-// 		});
-// 	}, 1000);
-// }
+var servient = new Wot.Core.Servient();
+servient.addClientFactory(new Wot.Http.HttpClientFactory());
+var helpers = new Wot.Core.Helpers(servient);
+document.getElementById("fetch").onclick = () => { get_td(document.getElementById("td_addr").value);  };
