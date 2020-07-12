@@ -12,6 +12,14 @@
  * 
  **/
 
+// List of widget updater ids
+// Needed when clearing the widgets
+let monitorTimerID;
+
+// List of property widgets used in live monitoring
+let propertyWidgets = [];
+
+
  // **CONSTANTS**
 
  
@@ -22,10 +30,10 @@ function get_td(addr) {
 		helpers.fetch(addr).then((td) => {
 			thingFactory.consume(td)
 			.then((thing) => {
-				//removeWidgets();
+				disableLiveMonitor();
 				removeInteractions();
 				showInteractions(thing);
-				propertiesLiveUpdate(thing);
+				monitorTimerID = enableLiveMonitor(thing);
 			});
 		}).catch((error) => {
 			window.alert("Could not fetch TD.\n" + error)
@@ -33,15 +41,6 @@ function get_td(addr) {
 	})
 }
 
-// Cached values used in live widgets
-//let cachedValues = {};
-
-// List of widget updater ids
-// Needed when clearing the widgets
-//let widgetUpdaters = [];
-
-// List of property widgets used in live monitoring
-let propertyWidgets = [];
 
 function showInteractions(thing) {
 	let td = thing.getThingDescription();
@@ -59,28 +58,37 @@ function showInteractions(thing) {
 				.catch(err => window.alert("error: " + err))
 			}
 
-			// Add widgets if possible
+			// Add property widgets (live monitoring)
 			if (td.properties[property]["@type"] !== undefined) {
 				if (td.properties[property]["@type"] === "range"
 				&& td.properties[property]["minimum"] !== undefined
 				&& td.properties[property]["maximum"] !== undefined) {
-
+					
+					// Add a gauge when possible
 					thing.readProperty(property).then(value => {
 						const min = td.properties[property]["minimum"];
 						const max = td.properties[property]["maximum"];
 						const gauge = new Gauge(property, value, min, max);
 						propertyWidgets.push(gauge);
-						gauge.addToDom("propertiesMonitor");
+						gauge.addToDom("propertyMonitor");
 						
 					});
 				} else if (td.properties[property]["@type"] === "discrete") {
 
+					// Add a sparkline when possible
 					thing.readProperty(property).then(value => {
 						const sparkline = new Sparkline(property, value, "°C");
 						propertyWidgets.push(sparkline);
-						sparkline.addToDom("propertiesMonitor");
+						sparkline.addToDom("propertyMonitor");
 					});
 				}
+			} else {
+				// Add a generic widget otherwise
+				thing.readProperty(property).then(value => {
+					const widget = new GenericWidget(property, value);
+					propertyWidgets.push(widget);
+					widget.addToDom("propertyMonitor");
+				});
 			}
 		}
 	};
@@ -208,19 +216,38 @@ document.getElementById("fetch").onclick = () => { get_td(document.getElementByI
 // }
 
 
-async function propertiesLiveUpdate(thing) {
+async function propertyLiveUpdate(thing) {
 	while (true) {
 		propertyWidgets.forEach(widget => {
 			thing.readProperty(widget.property)
 			.then(value => {
-				widget.update(value)
-				console.warn("TMP_LOG:", widget.property, value);
+				widget.update(value);
 			})
 		});
 		await new Promise(r => setTimeout(r, 1000));
 	}
 }
 
+
+function enableLiveMonitor(thing) {
+	return setInterval(() => {
+
+		propertyWidgets.forEach(widget => {
+			thing.readProperty(widget.property)
+			.then(value => {
+				widget.update(value);
+			})
+		});
+
+	}, 1000);
+}
+
+function disableLiveMonitor() {
+	propertyWidgets.forEach(widget => widget.removeFromDom("propertyMonitor"));
+	propertyWidgets = [];
+
+	clearInterval(monitorTimerID);
+}
 
 
 

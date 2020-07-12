@@ -6,11 +6,11 @@ class Widget {
 		this.symbol = symbol;
     }
 
-    addToDom(rootID) {
+    addToDom(rootID, className) {
         // Assumes that rootID is a table
 		const tbody = document.getElementById(rootID).getElementsByTagName("tbody")[0];
 		const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${this.property}</td><td><div id="${this.domID}"></div></td>`;
+        tr.innerHTML = `<td><pre class="property-name-table">${this.property}</pre></td><td><div id="${this.domID}" class="${className}"></div></td>`;
         
         tbody.appendChild(tr);
     };
@@ -149,4 +149,25 @@ class Sparkline extends Widget {
 	get cachedValues() {
 		return this._cached_values;
 	}
+}
+
+
+class GenericWidget extends Widget {
+    constructor(property, initVal, symbol="") {
+        const domID = "generic-" + property;
+        super(domID, property, initVal, symbol)
+    }
+
+    addToDom(rootID) {
+        super.addToDom(rootID, "generic-widget");
+        document.getElementById(this.domID).innerHTML = `<pre>${JSON.stringify(this.initVal, null, 2)}</pre>`;
+    };
+
+    update(value) {
+        const el = document.getElementById(this.domID);
+
+        if (!el) return;
+
+        el.innerHTML = `<pre>${JSON.stringify(value, null, 2)}</pre>`;
+    };
 }
