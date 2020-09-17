@@ -32,7 +32,7 @@ All systems require:
 
 #### Linux
 Meet the [node-gyp](https://github.com/nodejs/node-gyp#installation) requirements:
-* Python 2.7 (v3.x.x is not supported)
+* Python v2.7, v3.5, v3.6, v3.7, or v3.8
 * make
 * A proper C/C++ compiler toolchain, like GCC
 
@@ -63,26 +63,74 @@ Using a browser with only ES5 support (eg. IE 11) might be possible if you add p
 ## How to get the library
 ### As a Node.js dependency
 
+You can install node-wot in the following ways:
+
+1. As a normal dependency (i.e., like loadsh). In this case, you are embedding a servient inside your application.
+2. As a CLI to run scripts. In this case, your application is running inside
+the default servient.
+
+#### Normal Dependency
+
 If you want to use node-wot as a library in your Node.js application, you can use npm to install the node-wot packages that you need. To do so, `cd` inside you application folder, and run:
-```
-npm install @node-wot/core
-npm install @node-wot/binding-coap
-```
-Alternatively you can add `@node-wot/<package-name>`as a dependency to your `package.json`.
-
-#### As a dev dependency (debugging)
-
-If you want to develop applications for node-wot, you can use the command-line interface to run and debug your local scripts. First, install the CLI module as a dev-dependency:
 
 ```
-npm install @node-wot/cli --save-dev
+npm i @node-wot/core @node-wot/binding-coap --save
 ```
-Then to start `.js` files in the current directory use the following command `wot-servient` (or `node packages\cli\dist\cli.js`):
 
-For example, if you want to run a specific file or a list of files just append the file paths:
+Now, you can implement your node-wot entry point, e.g., `main.js` as follows:
+
+```JavaScript
+// Required steps to create a servient
+const Servient = require('@node-wot/core').Servient
+const HttpServer = require('@node-wot/binding-http').HttpServer
+
+const servient = new Servient()
+const servient.addServer(new HttpServer(servientConfig.http))
+const WoT = await this.servient.start()
+
+//Then from here on use WoT object to consume/produce Things
+//i.e. WoT.produce({.....})
+```
+
+You can then start the application by running `node main.js`.
+
+#### CLI Tool
+You can alternatively install the node-wot CLI, either globally (`npm i @node-wot/cli -g`) or as
+a (dev) dependency (`npm i @node-wot/cli --save` or `npm i @node-wot/cli --save-dev`).
+
+Then, you don't need to specify any further node-wot dependencies and can implement your application
+(e.g., `main.js`) without explicitly requiring node-wot dependencies:
+
+```JavaScript
+//No need to require node-wot componets
+// WoT runtime is provided as global object
+
+WoT.produce({/*.....*/})
+```
+
+If the CLI is globally installed, you don't need to set up a Node.js project.
+If you do so, anyway, you can specify the entry point as follows:
+
+```JavaScript
+"scripts":{
+   "start": "wot-servient main.js"
+}
+```
+
+There are several ways to start the application:  
+   a. Execute `npm start`.  
+   b. Execute  `./node_modules/.bin/wot-servient main.js`.  
+   c. Execute `node ./node_modules/@node-wot/cli/dist/cli.js main.js`.  
+   d. If you have installed `@node-wot/cli` globally you can even start the application right
+   away using this command `wot-servient main.js`. However, in the current implementation, the
+   import of local dependencies is not supported in this case.
+
+
+wot-servient can execute multiple files at once, for example as follows:
 ```
 wot-servient script1.js ./src/script2.js
 ```
+
 Finally, to debug use the option `--inspect` or `--inspect-brk` if you want to hang until your debug client is connected. Then start [Chrome Dev Tools](chrome://inspect) or [vscode debugger](https://code.visualstudio.com/docs/nodejs/nodejs-debugging#_attaching-to-nodejs) or your preferred v8 inspector to debug your code.
 
 For further details check: `wot-servient --help`
@@ -193,7 +241,7 @@ node packages\cli\dist\cli.js --clientonly examples\scripts\counter-client.js
 
 ### Using a browser
 An example of how to use node-wot as a browser-side library can be found under `examples/browser/index.html`.
-To run it, open [`examples/browser/index.html`](http://plugfest.thingweb.io/webui/) in a modern browser, and consume the test Thing available under `http://plugfest.thingweb.io:8083/TestThing` to interact with it.
+To run it, open [`examples/browser/index.html`](http://plugfest.thingweb.io/webui/) in a modern browser, and consume the test Thing available under `http://plugfest.thingweb.io:8083/testthing` to interact with it.
 
 The JavaScript code that uses node-wot as a library to power this application can be found under: `examples/browser/index.js`
 
@@ -251,11 +299,11 @@ You can also see `examples/scripts` to have a feeling of how to script a Thing.
 * [HTTPS](https://github.com/eclipse/thingweb.node-wot/blob/master/packages/binding-http/README.md) :heavy_check_mark:
 * [CoAP](https://github.com/eclipse/thingweb.node-wot/blob/master/packages/binding-coap/README.md) :heavy_check_mark:
 * [CoAPS](https://github.com/eclipse/thingweb.node-wot/blob/master/packages/binding-coap/README.md) :heavy_check_mark:
-* Websocket :heavy_check_mark:
 * [MQTT](https://github.com/eclipse/thingweb.node-wot/blob/master/packages/binding-mqtt/README.md) :heavy_check_mark:
+* [Websocket](https://github.com/eclipse/thingweb.node-wot/tree/master/packages/binding-websockets) :heavy_plus_sign: (Server only)
 * [OPC-UA](https://github.com/eclipse/thingweb.node-wot/blob/master/packages/binding-opcua/README.md) :heavy_plus_sign: (Client only)
 * [NETCONF](https://github.com/eclipse/thingweb.node-wot/blob/master/packages/binding-netconf/README.md) :heavy_plus_sign: (Client only)
-* Modbus :heavy_multiplication_x: (wip)
+* [Modbus](https://github.com/eclipse/thingweb.node-wot/tree/master/packages/binding-modbus) :heavy_plus_sign: (Client only)
 
 Note: More protocols can be easily added by implementing `ProtocolClient`, `ProtocolClientFactory`, and `ProtocolServer` interface.
 
@@ -269,6 +317,19 @@ Note: More protocols can be easily added by implementing `ProtocolClient`, `Prot
 * EXI :heavy_multiplication_x:
 
 Note: More mediaTyes can be easily added by implementing `ContentCodec` interface.
+
+```JavaScript
+const ContentSerdes = require('@node-wot/core').ContentSerdes
+const JsonCodec = require('@node-wot/core').JsonCodec
+
+// e.g., assign built-in codec for *new* contentType 
+let cs = ContentSerdes.get();
+cs.addCodec(new JsonCodec("application/calendar+json"));
+
+// e.g., assign *own* MyCodec implementation (implementing ContentCodec interface)
+cs.addCodec(new MyCodec("application/myType"));
+
+```
 
 ### Logging
 

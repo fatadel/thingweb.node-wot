@@ -97,21 +97,22 @@ export default class CoapServer implements ProtocolServer {
 
   public expose(thing: ExposedThing, tdTemplate?: WoT.ThingDescription): Promise<void> {
 
-    let title = thing.title;
+    let slugify = require('slugify');
+    let urlPath = slugify(thing.title, {lower: true});
 
-    if (this.things.has(title)) {
-      title = Helpers.generateUniqueName(title);
+    if (this.things.has(urlPath)) {
+      urlPath = Helpers.generateUniqueName(urlPath);
     }
 
-    console.debug("[binding-coap]",`CoapServer on port ${this.getPort()} exposes '${thing.title}' as unique '/${title}'`);
+    console.debug("[binding-coap]",`CoapServer on port ${this.getPort()} exposes '${thing.title}' as unique '/${urlPath}'`);
 
     if (this.getPort() !== -1) {
-      this.things.set(title, thing);
+      this.things.set(urlPath, thing);
 
       // fill in binding data
       for (let address of Helpers.getAddresses()) {
         for (let type of ContentSerdes.get().getOfferedMediaTypes()) {
-          let base: string = this.scheme + "://" + address + ":" + this.getPort() + "/" + encodeURIComponent(title);
+          let base: string = this.scheme + "://" + address + ":" + this.getPort() + "/" + encodeURIComponent(urlPath);
 
           for (let propertyName in thing.properties) {
             let href = base + "/" + this.PROPERTY_DIR + "/" + encodeURIComponent(propertyName);
@@ -124,6 +125,14 @@ export default class CoapServer implements ProtocolServer {
             } else {
               form.op = ["readproperty", "writeproperty"];
             }
+            if (thing.properties[propertyName].observable) {
+              if(!form.op) {
+                form.op = [];
+              }
+              form.op.push("observeproperty");
+              form.op.push("unobserveproperty");
+            }
+
             thing.properties[propertyName].forms.push(form);
             console.debug("[binding-coap]",`CoapServer on port ${this.getPort()} assigns '${href}' to Property '${propertyName}'`);
           }
@@ -141,7 +150,7 @@ export default class CoapServer implements ProtocolServer {
             let href = base + "/" + this.EVENT_DIR + "/" + encodeURIComponent(eventName);
             let form = new TD.Form(href, type);
             ProtocolHelpers.updateEventFormWithTemplate(form, tdTemplate, eventName);
-            form.op = "subscribeevent";
+            form.op = ["subscribeevent", "unsubscribeevent"];
             thing.events[eventName].forms.push(form);
             console.debug("[binding-coap]",`CoapServer on port ${this.getPort()} assigns '${href}' to Event '${eventName}'`);
           }

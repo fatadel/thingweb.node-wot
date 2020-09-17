@@ -14,7 +14,7 @@ In the following examples it is shown how to use the HTTP binding of node-wot.
 
 ### Client Example
 
-The client example tries to connect to a TestThing via HTTP and reads a property `string`. The ThingDescription is located under the follwing uri http://plugfest.thingweb.io:8083/TestThing.
+The client example tries to connect to a TestThing via HTTP and reads a property `string`. The ThingDescription is located under the follwing uri http://plugfest.thingweb.io:8083/testthing.
 
 `node example-client.js`
 
@@ -30,7 +30,7 @@ let servient = new Servient();
 servient.addClientFactory(new HttpClientFactory(null));
 
 let wotHelper = new Helpers(servient);
-wotHelper.fetch("http://plugfest.thingweb.io:8083/TestThing").then(async (td) => {
+wotHelper.fetch("http://plugfest.thingweb.io:8083/testthing").then(async (td) => {
     // using await for serial execution (note 'async' in then() of fetch())
     try {
         servient.start().then((WoT) => {
@@ -71,8 +71,8 @@ servient.start().then((WoT) => {
         "@context": "https://www.w3.org/2019/wot/td/v1",
         title: "MyCounter",
         properties: {
-			count: {
-				type: "integer"
+            count: {
+                type: "integer"
             }
         }
     }).then((thing) => {
@@ -126,8 +126,8 @@ servient.start().then((WoT) => {
         id: "urn:dev:wot:org:eclipse:thingweb:my-example-secure",
         title: "MyCounter",
         properties: {
-			count: {
-				type: "integer"
+            count: {
+                type: "integer"
             }
         }
     }).then((thing) => {
@@ -160,6 +160,17 @@ The protocol binding can be configured using his constructor or trough servient 
 ```
 When both `serverKey` and `serverCert` are defined the server is started in `https` mode. Examples of `serverKey` and `serverCert` can be found [here](../../examples/security). Moreover, when a security schema is provided the servient must be also configured with valid credentials both client and server side. See [Security](#Security) for further details.
 
+### Environment Variable Overrides
+HttpServer will check the environment variables `WOT_PORT`, then `PORT`.  If either are set, they will override the port the HttpServer will bind to.  
+
+You'll see log entries indicating this:
+
+`[binding-http] HttpServer Port Overridden to 1337 by Environment Variable WOT_PORT`
+
+These are useful on Heroku, Dokku, buildpack deployment, or Docker, etc.
+
+> `WOT_PORT` takes higher precedence than `PORT`
+
 ### HttpProxyConfig
 ```ts
 {
@@ -186,8 +197,9 @@ The http protocol binding supports a set of security protocols that can be enabl
     }
     credentials: {
         "urn:dev:wot:org:eclipse:thingweb:my-example-secure": {
-        username: "node-wot",
-        password: "hello"
+            username: "node-wot",
+            password: "hello"
+        }
     }
 }
 ```
@@ -202,8 +214,9 @@ The above configuration file, is setting up a https server with basic secure sch
     },
     credentials: {
         "urn:dev:wot:org:eclipse:thingweb:my-example-secure": {
-        username: "node-wot",
-        password: "hello"
+            username: "node-wot",
+            password: "hello"
+        }
     }
 }
 ```
@@ -215,9 +228,8 @@ An example of a WoT oAuth2.0 enabled client can be found [here](../examples/secu
 
 ## Feature matrix
 
-| | HTTP Producer | HTTP Consumer | 
-|:-----------------------:|:-------------:|:-------------:|:-------------:|:-------------:|:-------------:|:-------------:|:-------------------:|:-------------------:|:--------------:|:---------------:| 
-| OPERATIONS | | | | | | | | | | | 
+|Operation | HTTP Producer | HTTP Consumer | 
+| :---        |    :----:   |  :---: |
 | readproperty | Y | Y | 
 | writeproperty | Y | Y |
 | observeproperty | Y | Y | 
@@ -229,11 +241,15 @@ An example of a WoT oAuth2.0 enabled client can be found [here](../examples/secu
 | invokeaction | Y | Y | 
 | subscribeevent | Y | Y |  
 | unsubscribeevent | ? | ? | 
-| SUBPROTOCOLS | | | | | | | | | | | 
+
+| SubProtocols | HTTP Producer | HTTP Consumer | 
+| :---        |    :----:   |  :---: | 
 | longpoll | Y | Y | 
 | sse | Y | Y | 
-| websub | N | N |  
-| SEC. SCHEMES | | | | | | | | | | | 
+| websub | N | N | 
+
+| Sec. Schemes | HTTP Producer | HTTP Consumer | 
+| :---        |    :----:   |  :---: |
 | basic | Y | Y |
 | digest | N | N |
 | apikey | N | Y |  

@@ -27,7 +27,9 @@ import { AddressInfo } from "net";
 
 import * as TD from "@node-wot/td-tools";
 import Servient, { ProtocolServer, ContentSerdes, Helpers, ExposedThing, ProtocolHelpers } from "@node-wot/core";
-import { HttpConfig, HttpForm } from "./http";
+import { HttpConfig, HttpForm, OAuth2ServerConfig } from "./http";
+import createValidator, { Validator } from "./oauth-token-validation";
+import { OAuth2SecurityScheme } from "@node-wot/td-tools";
 
 export default class HttpServer implements ProtocolServer {
 
@@ -47,9 +49,11 @@ export default class HttpServer implements ProtocolServer {
   private readonly port: number = 8080;
   private readonly address: string = undefined;
   private readonly httpSecurityScheme: string = "NoSec"; // HTTP header compatible string
+  private readonly validOAuthClients: RegExp = /.*/g; 
   private readonly server: http.Server | https.Server = null;
   private readonly things: Map<string, ExposedThing> = new Map<string, ExposedThing>();
   private servient: Servient = null;
+  private oAuthValidator: Validator;
 
   constructor(config: HttpConfig = {}) {
     if (typeof config !== "object") {
@@ -59,6 +63,16 @@ export default class HttpServer implements ProtocolServer {
     if (config.port !== undefined) {
       this.port = config.port;
     }
+
+    const environmentObj = ['WOT_PORT', 'PORT' ]
+        .map(envVar => { return { key: envVar, value: process.env[envVar] } })
+        .find( envObj => envObj.value != null )
+
+    if ( environmentObj ) {
+      console.info("[binding-http]", `HttpServer Port Overridden to ${environmentObj.value} by Environment Variable ${environmentObj.key}`)
+      this.port = +environmentObj.value
+    }
+
     if (config.address !== undefined) {
       this.address = config.address;
     }
@@ -91,6 +105,12 @@ export default class HttpServer implements ProtocolServer {
         case "bearer":
           this.httpSecurityScheme = "Bearer";
           break;
+        case "oauth2":
+          this.httpSecurityScheme = "OAuth";
+          const oAuthConfig = config.security as OAuth2ServerConfig
+          this.validOAuthClients = new RegExp(oAuthConfig.allowedClients ?? ".*");
+          this.oAuthValidator= createValidator(oAuthConfig.method)
+          break;
         default:
           throw new Error(`HttpServer does not support security scheme '${config.security.scheme}`);
       }
@@ -118,7 +138,7 @@ export default class HttpServer implements ProtocolServer {
         });
         resolve();
       });
-      this.server.listen(+process.env.PORT || this.port, this.address);
+      this.server.listen(this.port, this.address);
     });
   }
 
@@ -173,46 +193,51 @@ export default class HttpServer implements ProtocolServer {
   
   public expose(thing: ExposedThing, tdTemplate?: WoT.ThingDescription): Promise<void> {
 
-    let title = thing.title;
+    let slugify = require('slugify');
+    let urlPath = slugify(thing.title, {lower: true});
 
-    if (this.things.has(title)) {
-      title = Helpers.generateUniqueName(title);
+    if (this.things.has(urlPath)) {
+      urlPath = Helpers.generateUniqueName(urlPath);
     }
 
     if (this.getPort() !== -1) {
 
-      console.debug("[binding-http]",`HttpServer on port ${this.getPort()} exposes '${thing.title}' as unique '/${title}'`);
-      this.things.set(title, thing);
+      console.debug("[binding-http]",`HttpServer on port ${this.getPort()} exposes '${thing.title}' as unique '/${urlPath}'`);
+      this.things.set(urlPath, thing);
 
       // fill in binding data
       for (let address of Helpers.getAddresses()) {
         for (let type of ContentSerdes.get().getOfferedMediaTypes()) {
-          let base: string = this.scheme + "://" + address + ":" + this.getPort() + "/" + encodeURIComponent(title);
+          let base: string = this.scheme + "://" + address + ":" + this.getPort() + "/" + encodeURIComponent(urlPath);
 
-          if(true) { // make reporting of all properties optional?
-            let href = base + "/" + this.ALL_DIR + "/" + encodeURIComponent(this.ALL_PROPERTIES);
-            let form = new TD.Form(href, type);
-            // check for readOnly/writeOnly for op field
+          if (true) { // make reporting of all properties optional?
+            // check for readOnly/writeOnly for op field and whether there are any properties at all
             let allReadOnly = true;
             let allWriteOnly = true;
+            let anyProperties = false;
             for (let propertyName in thing.properties) {
+              anyProperties = true;
               if (!thing.properties[propertyName].readOnly) {
                 allReadOnly = false;
               } else if (!thing.properties[propertyName].writeOnly) {
                 allWriteOnly = false;
               }
             }
-            if(allReadOnly) {
-              form.op = ["readallproperties", "readmultipleproperties"];
-            } else if(allWriteOnly) {
-              form.op = ["writeallproperties", "writemultipleproperties"];
-            } else {
-              form.op = ["readallproperties", "readmultipleproperties", "writeallproperties", "writemultipleproperties"];
+            if (anyProperties) {
+              let href = base + "/" + this.ALL_DIR + "/" + encodeURIComponent(this.ALL_PROPERTIES);
+              let form = new TD.Form(href, type);
+              if (allReadOnly) {
+                form.op = ["readallproperties", "readmultipleproperties"];
+              } else if (allWriteOnly) {
+                form.op = ["writeallproperties", "writemultipleproperties"];
+              } else {
+                form.op = ["readallproperties", "readmultipleproperties", "writeallproperties", "writemultipleproperties"];
+              }
+              if (!thing.forms) {
+                thing.forms = [];
+              }
+              thing.forms.push(form);
             }
-            if(!thing.forms) {
-              thing.forms = [];
-            }
-            thing.forms.push(form);
           }
 
           for (let propertyName in thing.properties) {
@@ -243,7 +268,7 @@ export default class HttpServer implements ProtocolServer {
             if (thing.properties[propertyName].observable) {
               let href = base + "/" + this.PROPERTY_DIR + "/" + encodeURIComponent(propertyName) + "/" + this.OBSERVABLE_DIR;
               let form = new TD.Form(href, type);
-              form.op = ["observeproperty"];
+              form.op = ["observeproperty", "unobserveproperty"];
               form.subprotocol = "longpoll";
               thing.properties[propertyName].forms.push(form);
               console.debug("[binding-http]",`HttpServer on port ${this.getPort()} assigns '${href}' to observable Property '${propertyName}'`);
@@ -270,7 +295,7 @@ export default class HttpServer implements ProtocolServer {
             let form = new TD.Form(href, type);
             ProtocolHelpers.updateEventFormWithTemplate(form, tdTemplate, eventName);
             form.subprotocol = "longpoll";
-            form.op = ["subscribeevent"];
+            form.op = ["subscribeevent", "unsubscribeevent"];
             thing.events[eventName].forms.push(form);
             console.debug("[binding-http]",`HttpServer on port ${this.getPort()} assigns '${href}' to Event '${eventName}'`);
           }
@@ -288,11 +313,11 @@ export default class HttpServer implements ProtocolServer {
     });
   }
 
-  private checkCredentials(id: string, req: http.IncomingMessage): boolean {
+  private async checkCredentials(thing: ExposedThing, req: http.IncomingMessage): Promise<boolean> {
 
-    console.debug("[binding-http]",`HttpServer on port ${this.getPort()} checking credentials for '${id}'`);
+    console.debug("[binding-http]",`HttpServer on port ${this.getPort()} checking credentials for '${thing.id}'`);
 
-    let creds = this.servient.getCredentials(id);
+    let creds = this.servient.getCredentials(thing.id);
 
     switch (this.httpSecurityScheme) {
       case "NoSec":
@@ -304,6 +329,23 @@ export default class HttpServer implements ProtocolServer {
                (basic.name === creds.username && basic.pass === creds.password);
       case "Digest":
         return false;
+      case "OAuth":
+        const oAuthScheme = thing.securityDefinitions[thing.security[0] as string] as OAuth2SecurityScheme
+        
+        //TODO: Support security schemes defined at affordance level
+        const scopes = oAuthScheme.scopes ?? []
+        let valid = false
+        
+        try {
+          valid = await this.oAuthValidator.validate(req, scopes, this.validOAuthClients);
+        } catch (error) {
+          // TODO: should we answer differently to the client if something went wrong?
+          console.error("OAuth authorization error; sending unauthorized response error")
+          console.error("this was possibly caused by a misconfiguration of the server")
+          console.error(error)
+        }
+
+        return valid
       case "Bearer":
         if (req.headers["authorization"]===undefined) return false;
         // TODO proper token evaluation
@@ -320,7 +362,12 @@ export default class HttpServer implements ProtocolServer {
   private fillSecurityScheme(thing: ExposedThing){
     if (thing.securityDefinitions) {
       const secCandidate = Object.keys(thing.securityDefinitions).find(key => {
-        return thing.securityDefinitions[key].scheme === this.httpSecurityScheme.toLowerCase()
+        let scheme = thing.securityDefinitions[key].scheme
+        // HTTP Authentication Scheme for OAuth does not contain the version number
+        // see https://www.iana.org/assignments/http-authschemes/http-authschemes.xhtml
+        // remove version number for oauth2 schemes
+        scheme = scheme === "oauth2" ? scheme.split("2")[0] : scheme
+        return scheme === this.httpSecurityScheme.toLowerCase()
       })
 
       if (!secCandidate) {
@@ -371,7 +418,7 @@ export default class HttpServer implements ProtocolServer {
     return params;
   }
 
-  private handleRequest(req: http.IncomingMessage, res: http.ServerResponse) {
+  private async handleRequest(req: http.IncomingMessage, res: http.ServerResponse) {
     
     let requestUri = url.parse(req.url);
 
@@ -485,7 +532,7 @@ export default class HttpServer implements ProtocolServer {
 
         } else {
           // Thing Interaction - Access Control
-          if (this.httpSecurityScheme!=="NoSec" && !this.checkCredentials(thing.id, req)) {
+          if (this.httpSecurityScheme!=="NoSec" && ! await this.checkCredentials(thing, req)) {
             res.setHeader("WWW-Authenticate", `${this.httpSecurityScheme} realm="${thing.id}"`);
             res.writeHead(401);
             res.end();

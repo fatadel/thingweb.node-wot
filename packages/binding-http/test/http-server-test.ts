@@ -67,7 +67,7 @@ class HttpServerTest {
 
     await httpServer.expose(testThing);
 
-    let uri = `http://localhost:${httpServer.getPort()}/Test/`;
+    let uri = `http://localhost:${httpServer.getPort()}/test/`;
     let body;
 
     console.log("Testing", uri);
@@ -136,6 +136,7 @@ class HttpServerTest {
     });
     await httpServer.start(null);
     let testThing = new ExposedThing(null);
+    testThing.title = "Test";
     testThing.securityDefinitions = {
       "bearer" : {
         scheme:"bearer"
@@ -160,6 +161,7 @@ class HttpServerTest {
     await httpServer.start(null);
     
     let testThing = new ExposedThing(null);
+    testThing.title = "Test";
     testThing.securityDefinitions = {
       "oauth2" : {
         scheme:"oauth2"
@@ -169,5 +171,37 @@ class HttpServerTest {
     expect(() => { httpServer.expose(testThing, {});}).throw()
     await httpServer.stop();
 
+  }
+
+  @test async "config.port is overriden by WOT_PORT or PORT"() {
+
+    // Works when none set
+    let httpServer = new HttpServer({ port: 58080 });
+    await httpServer.start(null);
+    expect(httpServer.getPort()).to.eq(58080); // WOT PORT from test
+    await httpServer.stop();
+
+    // Check PORT
+    process.env.PORT='2222'
+    httpServer = new HttpServer({ port: 58080 });
+    await httpServer.start(null);
+    expect(httpServer.getPort()).to.eq(2222); // from PORT
+    await httpServer.stop();
+
+    // CHECK WOT_PORT
+    process.env.PORT=undefined
+    process.env.WOT_PORT='3333'
+    httpServer = new HttpServer({ port: 58080 });
+    await httpServer.start(null);
+    expect(httpServer.getPort()).to.eq(3333); // WOT PORT from test
+    await httpServer.stop();
+
+    // Check WOT_PORT has higher priority than PORT
+    process.env.PORT='2600'
+    process.env.WOT_PORT='1337'
+    httpServer = new HttpServer({ port: 58080 });
+    await httpServer.start(null);
+    expect(httpServer.getPort()).to.eq(1337); // WOT PORT from test
+    await httpServer.stop();
   }
 }
