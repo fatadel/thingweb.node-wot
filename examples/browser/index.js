@@ -13,11 +13,11 @@
  **/
 
 // **GLOBAL CONSTANTS**
-// If a property's `@type` field has this value it gets the gauge widget
-const GAUGE_AT_TYPE = "range";
+// If a property's `@type` field has one of these values it gets the gauge widget
+const GAUGE_AT_TYPE = ["range"];
 
-// If a property's `@type` field has this value it gets the sparkline widget
-const SPARKLINE_AT_TYPE = "discrete";
+// If a property's `@type` field has one of these values it gets the sparkline widget
+const SPARKLINE_AT_TYPE = ["discrete"];
 
 
 
@@ -211,7 +211,7 @@ function disableLiveMonitor() {
 function addPropertyWidget(td, property, thing) {
 
 	if (td.properties[property]["@type"] !== undefined) {
-		if (td.properties[property]["@type"] === "range"
+		if (GAUGE_AT_TYPE.includes(td.properties[property]["@type"])
 		&& td.properties[property]["minimum"] !== undefined
 		&& td.properties[property]["maximum"] !== undefined) {
 			
@@ -224,7 +224,7 @@ function addPropertyWidget(td, property, thing) {
 				gauge.addToDom("propertyMonitor");
 				
 			});
-		} else if (td.properties[property]["@type"] === "discrete") {
+		} else if (SPARKLINE_AT_TYPE.includes(td.properties[property]["@type"])) {
 
 			// Add a sparkline when possible
 			thing.readProperty(property).then(value => {
